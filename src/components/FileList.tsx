@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { FileItem, ConversionOptions } from '../types';
-import { File, CheckCircle, AlertCircle, Loader2, Download, Trash2, PackageCheck, Archive, Eye } from 'lucide-react';
+import { File, CheckCircle, AlertCircle, Loader2, Download, Trash2, PackageCheck, Archive, Eye, FileText } from 'lucide-react';
 import { FileConversionOptions } from './ConversionOptions';
+import { DocumentAnalyzer } from './DocumentAnalyzer';
 import JSZip from 'jszip';
 import toast from 'react-hot-toast';
 
@@ -16,6 +17,7 @@ interface FileListProps {
 export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: FileListProps) {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [isZipping, setIsZipping] = useState(false);
+  const [analyzingFile, setAnalyzingFile] = useState<FileItem | null>(null);
 
   if (files.length === 0) {
     return null;
@@ -103,6 +105,12 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
         onDownload(file);
       }
       toast.success('Files downloaded successfully!');
+    }
+  };
+
+  const handleAnalyzeDocument = (file: FileItem) => {
+    if (file.status === 'completed' && file.file) {
+      setAnalyzingFile(file);
     }
   };
 
@@ -218,6 +226,16 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
                       {file.status === 'completed' && (
                         <>
                           <CheckCircle className="w-5 h-5 text-green-500" />
+                          {(file.type === 'application/pdf' || 
+                            file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') && (
+                            <button
+                              onClick={() => handleAnalyzeDocument(file)}
+                              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors duration-150 group"
+                              title="Analyze document"
+                            >
+                              <FileText className="w-5 h-5 text-gray-600 group-hover:text-blue-600" />
+                            </button>
+                          )}
                           <button
                             onClick={() => onPreview(file)}
                             className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors duration-150 group"
@@ -255,6 +273,13 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
           ))}
         </div>
       </div>
+
+      {analyzingFile && (
+        <DocumentAnalyzer
+          file={analyzingFile.file!}
+          onClose={() => setAnalyzingFile(null)}
+        />
+      )}
     </div>
   );
 }

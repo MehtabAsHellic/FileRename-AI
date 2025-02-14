@@ -20,13 +20,6 @@ export function Header() {
 
   return (
     <nav className="bg-white shadow-sm relative">
-      {/* Beta Badge - Repositioned and Redesigned */}
-      <div className="absolute top-0 left-1/2 transform -translate-x-1/2">
-        <span className="inline-flex items-center px-3 py-1 text-sm font-medium bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-b-lg shadow-lg">
-          Beta
-        </span>
-      </div>
-      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <Logo />
         

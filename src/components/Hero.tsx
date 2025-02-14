@@ -2,6 +2,16 @@ import React from 'react';
 import { FileText, Wand2, Lock, Users, Zap, Brain, FileSearch, Download } from 'lucide-react';
 
 export function Hero() {
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  };
+
   return (
     <div className="relative overflow-hidden bg-gradient-to-b from-purple-50 via-blue-50 to-white">
       {/* Background decoration */}
@@ -13,6 +23,13 @@ export function Hero() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-12">
         <div className="text-center space-y-8">
+          {/* Beta Version Badge - Moved above AI-Powered text */}
+          <div className="flex justify-center">
+            <span className="inline-flex items-center px-3 py-1 text-sm font-medium bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg shadow-lg">
+              Beta Version 1.2
+            </span>
+          </div>
+
           <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 text-purple-600 mb-4">
             <Wand2 className="w-4 h-4 mr-2" />
             <span className="text-sm font-medium">AI-Powered File Organization</span>
@@ -29,12 +46,18 @@ export function Hero() {
           </p>
 
           <div className="flex justify-center space-x-4 pt-6">
-            <a href="#upload" className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl">
+            <button 
+              onClick={() => scrollToSection('upload')}
+              className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
               Start Renaming
-            </a>
-            <a href="#learn-more" className="px-8 py-3 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl">
+            </button>
+            <button 
+              onClick={() => scrollToSection('learn-more')}
+              className="px-8 py-3 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
               Learn More
-            </a>
+            </button>
           </div>
         </div>
         
@@ -64,7 +87,7 @@ export function Hero() {
           </div>
         </div>
 
-        <div className="mt-24 text-center">
+        <div id="learn-more" className="mt-24 text-center scroll-mt-16">
           <h2 className="text-3xl font-bold text-gray-900 mb-8">How It Works</h2>
           <div className="grid md:grid-cols-4 gap-8 max-w-6xl mx-auto">
             <div className="relative">
