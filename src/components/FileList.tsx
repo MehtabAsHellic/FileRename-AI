@@ -54,32 +54,32 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
     if (asZip) {
       setIsZipping(true);
       const zip = new JSZip();
-      const chunkSize = 2;
       
       try {
         // Process files in smaller chunks to prevent memory issues
+        const chunkSize = 5;
         for (let i = 0; i < filesToDownload.length; i += chunkSize) {
           const chunk = filesToDownload.slice(i, i + chunkSize);
+          
           await Promise.all(chunk.map(async (file) => {
             const fileToZip = file.convertedFile || file.file;
             if (fileToZip) {
-              const arrayBuffer = await fileToZip.arrayBuffer();
-              zip.file(file.newName || file.originalName, arrayBuffer);
+              zip.file(file.newName || file.originalName, fileToZip);
             }
           }));
-          
-          // Add a small delay between chunks to prevent browser from freezing
+
+          // Add a small delay between chunks
           if (i + chunkSize < filesToDownload.length) {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
         }
-        
+
         const content = await zip.generateAsync({
           type: 'blob',
           compression: 'DEFLATE',
           compressionOptions: { level: 6 }
         });
-        
+
         const url = URL.createObjectURL(content);
         const a = document.createElement('a');
         a.href = url;
@@ -88,18 +88,20 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+
         toast.success('Files downloaded successfully!');
       } catch (error) {
         console.error('Error generating zip:', error);
-        toast.error('Failed to create ZIP file');
+        toast.error('Failed to create ZIP file. Try downloading files individually.');
       } finally {
         setIsZipping(false);
       }
     } else {
       // Download files individually
-      filesToDownload.forEach(file => {
+      for (const file of filesToDownload) {
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay between downloads
         onDownload(file);
-      });
+      }
       toast.success('Files downloaded successfully!');
     }
   };

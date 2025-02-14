@@ -2,33 +2,40 @@ import React from 'react';
 import { Logo } from './Logo';
 import { useAuth } from '../context/AuthContext';
 import { Github, LogIn, LogOut, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export function Header() {
   const { user, loading, signInWithGoogle, signOut } = useAuth();
 
   const handleAuth = async () => {
     try {
-      if (user) {
-        await signOut();
-      } else {
-        await signInWithGoogle();
-      }
+      toast.info('Google Sign-in will be available in the next update!', {
+        duration: 4000,
+        icon: '🚧'
+      });
     } catch (error) {
       console.error('Authentication error:', error);
     }
   };
 
   return (
-    <nav className="bg-white shadow-sm">
+    <nav className="bg-white shadow-sm relative">
+      {/* Beta Badge - Repositioned and Redesigned */}
+      <div className="absolute top-0 left-1/2 transform -translate-x-1/2">
+        <span className="inline-flex items-center px-3 py-1 text-sm font-medium bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-b-lg shadow-lg">
+          Beta
+        </span>
+      </div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <Logo />
         
         <div className="flex items-center space-x-4">
           <a
-            href="https://github.com"
+            href="https://github.com/MehtabAsHellic/FileRename-AI"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors duration-200"
           >
             <Github className="w-5 h-5" />
             <span className="hidden sm:inline">View on GitHub</span>

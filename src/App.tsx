@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { FileUploader } from './components/FileUploader';
 import { FileList } from './components/FileList';
 import { PatternInput } from './components/PatternInput';
@@ -7,7 +7,6 @@ import { Header } from './components/Header';
 import { Testimonials } from './components/Testimonials';
 import { Footer } from './components/Footer';
 import { FilePreview } from './components/FilePreview';
-import { FileConversionOptions } from './components/ConversionOptions';
 import { FileItem, RenamePattern, ConversionOptions } from './types';
 import { Loader2, ArrowUp } from 'lucide-react';
 import { analyzePDF } from './utils/fileAnalyzer';
@@ -22,6 +21,7 @@ function App() {
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
+  const [uploadingCount, setUploadingCount] = useState(0);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -48,6 +48,12 @@ function App() {
       setIsModelLoading(false);
     });
   }, []);
+
+  // Track number of files currently uploading
+  useEffect(() => {
+    const uploading = files.filter(f => f.status === 'uploading').length;
+    setUploadingCount(uploading);
+  }, [files]);
 
   const handleFilesSelected = useCallback(async (selectedFiles: File[]) => {
     const newFiles: FileItem[] = selectedFiles.map((file) => ({
@@ -118,6 +124,17 @@ function App() {
       setIsProcessing(false);
     }
   }, [pattern]);
+
+  const handlePreviewFile = useCallback((file: FileItem) => {
+    // Only allow preview if file is not uploading
+    if (file.status !== 'uploading') {
+      setPreviewFile(file);
+    }
+  }, []);
+
+  const handleClosePreview = useCallback(() => {
+    setPreviewFile(null);
+  }, []);
 
   const handleConvertFile = async (file: FileItem, options: ConversionOptions) => {
     try {
@@ -263,7 +280,7 @@ function App() {
             files={files}
             onDownload={handleDownload}
             onRemove={handleRemove}
-            onPreview={setPreviewFile}
+            onPreview={handlePreviewFile}
             onConvert={handleConvertFile}
           />
         </div>
@@ -274,8 +291,9 @@ function App() {
 
       {previewFile && (
         <FilePreview
+          key={previewFile.id}
           file={previewFile}
-          onClose={() => setPreviewFile(null)}
+          onClose={handleClosePreview}
         />
       )}
 
