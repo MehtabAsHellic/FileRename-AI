@@ -19,6 +19,7 @@ function App() {
   const [pattern, setPattern] = useState<RenamePattern>({ type: 'ai' });
   const [isProcessing, setIsProcessing] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(true);
+  const [modelLoadFailed, setModelLoadFailed] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
@@ -44,9 +45,42 @@ function App() {
   };
 
   useEffect(() => {
-    initializeModel().then(() => {
-      setIsModelLoading(false);
-    });
+    let timeoutId: NodeJS.Timeout;
+    
+    const loadModel = async () => {
+      try {
+        // Set a timeout for model loading
+        const timeoutPromise = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(new Error('Model loading timeout'));
+          }, 10000); // 10 second timeout
+        });
+
+        // Try to load the model with a timeout
+        await Promise.race([initializeModel(), timeoutPromise]);
+        setIsModelLoading(false);
+        setModelLoadFailed(false);
+      } catch (error) {
+        console.error('Model loading failed:', error);
+        setIsModelLoading(false);
+        setModelLoadFailed(true);
+        // Switch to pattern mode automatically if AI fails
+        setPattern({ type: 'pattern', pattern: '{date}_{type}_{original}' });
+        toast.error('AI features are currently unavailable. Using pattern mode instead.');
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+      }
+    };
+
+    loadModel();
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, []);
 
   // Track number of files currently uploading
@@ -126,7 +160,6 @@ function App() {
   }, [pattern]);
 
   const handlePreviewFile = useCallback((file: FileItem) => {
-    // Only allow preview if file is not uploading
     if (file.status !== 'uploading') {
       setPreviewFile(file);
     }
@@ -181,31 +214,37 @@ function App() {
   };
 
   const generateNewName = async (file: FileItem, pattern: RenamePattern): Promise<string> => {
-    if (pattern.type === 'ai') {
-      if (file.type === 'application/pdf') {
-        return await analyzePDF(file.file as File);
+    if (pattern.type === 'ai' && !modelLoadFailed) {
+      try {
+        if (file.type === 'application/pdf') {
+          return await analyzePDF(file.file as File);
+        }
+      } catch (error) {
+        console.error('AI naming error:', error);
+        // Fallback to basic pattern if AI fails
+        return generateBasicName(file);
       }
-      
-      const prefix = file.type.startsWith('image/')
-        ? 'Photo'
-        : file.type.startsWith('video/')
-        ? 'Video'
-        : 'Document';
-      const date = new Date().toISOString().split('T')[0];
-      return `${prefix}_${date}_${Math.floor(Math.random() * 1000)}${getExtension(file.originalName)}`;
-    } else {
-      let newName = pattern.pattern || '{original}';
-      const date = new Date().toISOString().split('T')[0];
-      const type = file.type.split('/')[0];
-      
-      newName = newName
+    }
+    
+    return generateBasicName(file);
+  };
+
+  const generateBasicName = (file: FileItem): string => {
+    const date = new Date().toISOString().split('T')[0];
+    const type = file.type.split('/')[0];
+    const originalName = file.originalName.replace(/\.[^/.]+$/, "");
+    
+    if (pattern.type === 'pattern' && pattern.pattern) {
+      return pattern.pattern
         .replace('{date}', date)
         .replace('{type}', type)
-        .replace('{original}', file.originalName.replace(/\.[^/.]+$/, ""))
-        .replace('{counter}', Math.floor(Math.random() * 1000).toString());
-        
-      return newName + getExtension(file.originalName);
+        .replace('{original}', originalName)
+        .replace('{counter}', Math.floor(Math.random() * 1000).toString()) + 
+        getExtension(file.originalName);
     }
+    
+    // Default pattern if none specified
+    return `${type}_${date}_${Math.floor(Math.random() * 1000)}${getExtension(file.originalName)}`;
   };
 
   const getExtension = (filename: string): string => {
@@ -252,6 +291,7 @@ function App() {
         <div className="text-center space-y-4">
           <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto" />
           <p className="text-gray-600">Loading AI model...</p>
+          <p className="text-sm text-gray-500">This may take a few moments</p>
         </div>
       </div>
     );
@@ -263,12 +303,21 @@ function App() {
       <Hero onStartRenaming={() => scrollToSection('upload')} />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {modelLoadFailed && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-yellow-800">
+              AI features are currently unavailable. Using pattern mode for file renaming.
+            </p>
+          </div>
+        )}
+
         <div className="space-y-8" id="upload">
           <PatternInput
             pattern={pattern}
             onChange={setPattern}
             onApply={handleApplyPattern}
             disabled={isProcessing}
+            aiUnavailable={modelLoadFailed}
           />
           
           <FileUploader

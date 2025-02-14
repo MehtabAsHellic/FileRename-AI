@@ -3,9 +3,16 @@ import { jsPDF } from 'jspdf';
 import { ConversionOptions } from '../types';
 import { PDFDocument } from 'pdf-lib';
 import { getDocument } from 'pdfjs-dist';
+import toast from 'react-hot-toast';
 
 export async function convertFile(file: File, options: ConversionOptions): Promise<File | null> {
   try {
+    console.log('Starting file conversion:', { 
+      fileName: file.name,
+      fileType: file.type,
+      targetFormat: options.targetFormat 
+    });
+
     const { targetFormat } = options;
     
     if (!file || !targetFormat) {
@@ -30,38 +37,45 @@ export async function convertFile(file: File, options: ConversionOptions): Promi
     throw new Error(`Unsupported conversion from ${file.type} to ${targetFormat}`);
   } catch (error) {
     console.error('Conversion error:', error);
+    toast.error(`Failed to convert file: ${error.message}`);
     throw error;
   }
 }
 
 async function extractTextFromPDF(file: File): Promise<string> {
   try {
+    console.log('Extracting text from PDF:', file.name);
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await getDocument({ data: arrayBuffer }).promise;
     let fullText = '';
 
     for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      const pageText = content.items
-        .map((item: any) => item.str)
-        .join(' ');
-      fullText += pageText + '\n\n';
+      try {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item: any) => item.str)
+          .join(' ');
+        fullText += pageText + '\n\n';
+        console.log(`Extracted text from page ${i}/${pdf.numPages}`);
+      } catch (pageError) {
+        console.error(`Error extracting text from page ${i}:`, pageError);
+        continue;
+      }
     }
 
-    return fullText;
+    return fullText.trim() || 'No text content extracted';
   } catch (error) {
     console.error('Error extracting text from PDF:', error);
-    throw error;
+    throw new Error('Failed to extract text from PDF');
   }
 }
 
 async function convertPDFToDocx(file: File): Promise<File> {
   try {
-    // Extract text from PDF
+    console.log('Converting PDF to DOCX:', file.name);
     const text = await extractTextFromPDF(file);
 
-    // Create a new Word document
     const doc = new Document({
       sections: [{
         properties: {},
@@ -70,60 +84,60 @@ async function convertPDFToDocx(file: File): Promise<File> {
             children: [
               new TextRun({
                 text: paragraph.trim(),
-                size: 24 // 12pt font
+                size: 24
               })
             ],
             spacing: {
-              after: 200 // Add space after each paragraph
+              after: 200
             }
           })
         )
       }]
     });
 
-    // Generate buffer
+    console.log('Creating DOCX document...');
     const buffer = await Packer.toBuffer(doc);
-    
-    // Create new file
     const newFileName = file.name.replace(/\.pdf$/i, '.docx');
+    
+    console.log('DOCX conversion completed:', newFileName);
     return new File([buffer], newFileName, {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     });
   } catch (error) {
     console.error('PDF to DOCX conversion error:', error);
-    throw new Error('Failed to convert PDF to DOCX. Please try again.');
+    throw new Error('Failed to convert PDF to DOCX');
   }
 }
 
 async function convertDocxToPDF(file: File): Promise<File> {
   try {
-    // Create a new PDF document
+    console.log('Converting DOCX to PDF:', file.name);
     const doc = new jsPDF();
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage();
     
-    // Get text content from DOCX (simplified)
-    const text = await new Promise<string>((resolve) => {
+    const text = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
       reader.readAsText(file);
     });
 
-    // Add text to PDF
     doc.setFontSize(12);
     const splitText = doc.splitTextToSize(text, 180);
     doc.text(splitText, 15, 15);
 
-    // Generate PDF blob
+    console.log('Creating PDF document...');
     const pdfBlob = doc.output('blob');
     const newFileName = file.name.replace(/\.docx$/i, '.pdf');
     
+    console.log('PDF conversion completed:', newFileName);
     return new File([pdfBlob], newFileName, { 
       type: 'application/pdf' 
     });
   } catch (error) {
     console.error('DOCX to PDF conversion error:', error);
-    throw new Error('Failed to convert DOCX to PDF. Please try again.');
+    throw new Error('Failed to convert DOCX to PDF');
   }
 }
 
@@ -132,6 +146,12 @@ async function convertImage(file: File, targetFormat: string, options: Conversio
   
   return new Promise((resolve, reject) => {
     try {
+      console.log('Converting image:', {
+        fileName: file.name,
+        targetFormat,
+        quality
+      });
+
       const img = new Image();
       const imageUrl = URL.createObjectURL(file);
       
@@ -144,36 +164,30 @@ async function convertImage(file: File, targetFormat: string, options: Conversio
             throw new Error('Failed to get canvas context');
           }
 
-          // Set canvas dimensions
           canvas.width = img.width;
           canvas.height = img.height;
           
-          // Draw image with white background for PNG/WEBP
           if (targetFormat === 'png' || targetFormat === 'webp') {
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
           }
           
-          // Draw image
           ctx.drawImage(img, 0, 0);
           
-          // Convert to new format
           canvas.toBlob(
             (blob) => {
+              URL.revokeObjectURL(imageUrl);
+              
               if (!blob) {
                 reject(new Error('Failed to convert image'));
                 return;
               }
               
-              // Clean up
-              URL.revokeObjectURL(imageUrl);
-              
               const newFileName = file.name.replace(/\.[^/.]+$/, `.${targetFormat}`);
-              const convertedFile = new File([blob], newFileName, { 
+              console.log('Image conversion completed:', newFileName);
+              resolve(new File([blob], newFileName, { 
                 type: `image/${targetFormat}` 
-              });
-              
-              resolve(convertedFile);
+              }));
             },
             `image/${targetFormat}`,
             quality
