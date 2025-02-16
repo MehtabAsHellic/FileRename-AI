@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.2.1",
     "@xenova/transformers": "2.15.1",
     "docx": "8.5.0",
     "firebase": "10.8.0",

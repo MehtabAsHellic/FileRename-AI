@@ -7,6 +7,7 @@ import { Header } from './components/Header';
 import { Testimonials } from './components/Testimonials';
 import { Footer } from './components/Footer';
 import { FilePreview } from './components/FilePreview';
+import { Chatbot } from './components/Chatbot';
 import { FileItem, RenamePattern, ConversionOptions } from './types';
 import { Loader2, ArrowUp } from 'lucide-react';
 import { analyzePDF } from './utils/fileAnalyzer';
@@ -18,11 +19,31 @@ function App() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [pattern, setPattern] = useState<RenamePattern>({ type: 'ai' });
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isModelLoading, setIsModelLoading] = useState(true);
-  const [modelLoadFailed, setModelLoadFailed] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
+
+  // Initialize model in the background
+  useEffect(() => {
+    let mounted = true;
+
+    const loadModel = async () => {
+      try {
+        const model = await initializeModel();
+        if (mounted && model) {
+          setPattern({ type: 'ai' });
+        }
+      } catch (error) {
+        console.error('Model initialization error:', error);
+      }
+    };
+
+    loadModel();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -32,6 +53,12 @@ function App() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Track number of files currently uploading
+  useEffect(() => {
+    const uploading = files.filter(f => f.status === 'uploading').length;
+    setUploadingCount(uploading);
+  }, [files]);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -43,51 +70,6 @@ function App() {
       element.scrollIntoView({ behavior: 'smooth' });
     }
   };
-
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
-    const loadModel = async () => {
-      try {
-        // Set a timeout for model loading
-        const timeoutPromise = new Promise((_, reject) => {
-          timeoutId = setTimeout(() => {
-            reject(new Error('Model loading timeout'));
-          }, 10000); // 10 second timeout
-        });
-
-        // Try to load the model with a timeout
-        await Promise.race([initializeModel(), timeoutPromise]);
-        setIsModelLoading(false);
-        setModelLoadFailed(false);
-      } catch (error) {
-        console.error('Model loading failed:', error);
-        setIsModelLoading(false);
-        setModelLoadFailed(true);
-        // Switch to pattern mode automatically if AI fails
-        setPattern({ type: 'pattern', pattern: '{date}_{type}_{original}' });
-        toast.error('AI features are currently unavailable. Using pattern mode instead.');
-      } finally {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-      }
-    };
-
-    loadModel();
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, []);
-
-  // Track number of files currently uploading
-  useEffect(() => {
-    const uploading = files.filter(f => f.status === 'uploading').length;
-    setUploadingCount(uploading);
-  }, [files]);
 
   const handleFilesSelected = useCallback(async (selectedFiles: File[]) => {
     const newFiles: FileItem[] = selectedFiles.map((file) => ({
@@ -214,14 +196,13 @@ function App() {
   };
 
   const generateNewName = async (file: FileItem, pattern: RenamePattern): Promise<string> => {
-    if (pattern.type === 'ai' && !modelLoadFailed) {
+    if (pattern.type === 'ai') {
       try {
         if (file.type === 'application/pdf') {
           return await analyzePDF(file.file as File);
         }
       } catch (error) {
         console.error('AI naming error:', error);
-        // Fallback to basic pattern if AI fails
         return generateBasicName(file);
       }
     }
@@ -243,7 +224,6 @@ function App() {
         getExtension(file.originalName);
     }
     
-    // Default pattern if none specified
     return `${type}_${date}_${Math.floor(Math.random() * 1000)}${getExtension(file.originalName)}`;
   };
 
@@ -285,39 +265,18 @@ function App() {
     setIsProcessing(false);
   };
 
-  if (isModelLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto" />
-          <p className="text-gray-600">Loading AI model...</p>
-          <p className="text-sm text-gray-500">This may take a few moments</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       <Hero onStartRenaming={() => scrollToSection('upload')} />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {modelLoadFailed && (
-          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-yellow-800">
-              AI features are currently unavailable. Using pattern mode for file renaming.
-            </p>
-          </div>
-        )}
-
         <div className="space-y-8" id="upload">
           <PatternInput
             pattern={pattern}
             onChange={setPattern}
             onApply={handleApplyPattern}
             disabled={isProcessing}
-            aiUnavailable={modelLoadFailed}
           />
           
           <FileUploader
@@ -346,10 +305,12 @@ function App() {
         />
       )}
 
+      <Chatbot />
+
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-8 right-8 p-4 bg-purple-600 text-white rounded-full shadow-lg hover:bg-purple-700 transition-colors duration-200 z-50"
+          className="fixed bottom-8 left-8 p-4 bg-purple-600 text-white rounded-full shadow-lg hover:bg-purple-700 transition-colors duration-200 z-50"
           aria-label="Scroll to top"
         >
           <ArrowUp className="w-6 h-6" />

@@ -1,4 +1,5 @@
 import { Pipeline, pipeline } from '@xenova/transformers';
+import { getDocument } from 'pdfjs-dist';
 
 let summarizer: Pipeline | null = null;
 let modelLoading = false;
@@ -23,12 +24,17 @@ export async function initializeSummarizer() {
     if (!summarizer) {
       modelLoading = true;
       try {
-        // Use a smaller, more efficient model
+        // Use a smaller, quantized model with retry logic
         summarizer = await pipeline('summarization', 'Xenova/distilbart-cnn-6-6', {
           quantized: true,
           progress_callback: (progress) => {
             console.log('Loading model:', Math.round(progress * 100), '%');
-          }
+          },
+          cache: true,
+          retry: true,
+          retries: 3,
+          timeout: 30000,
+          fallbackToCache: true
         });
         console.log('Summarizer model loaded successfully');
       } catch (error) {
@@ -56,6 +62,7 @@ export async function summarizeText(text: string): Promise<string> {
     const result = await summarizer.summarize(text, {
       max_length: 130,
       min_length: 30,
+      truncation: true
     });
     return result[0].summary_text;
   } catch (error) {
@@ -65,14 +72,18 @@ export async function summarizeText(text: string): Promise<string> {
 }
 
 function getFallbackSummary(text: string): string {
-  // Extract first few sentences as a basic summary
-  const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
-  return sentences.slice(0, 3).join(' ').trim() || text.slice(0, 200) + '...';
+  try {
+    // Extract first few sentences as a basic summary
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
+    return sentences.slice(0, 3).join(' ').trim() || text.slice(0, 200) + '...';
+  } catch (error) {
+    console.error('Fallback summary error:', error);
+    return text.slice(0, 200) + '...';
+  }
 }
 
 export async function extractTextFromPDF(file: File): Promise<string> {
   try {
-    const { getDocument } = await import('pdfjs-dist');
     const data = await file.arrayBuffer();
     const pdf = await getDocument({ data }).promise;
     let text = '';

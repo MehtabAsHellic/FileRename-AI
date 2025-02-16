@@ -1,4 +1,9 @@
 import { Pipeline, pipeline } from '@xenova/transformers';
+import { GlobalWorkerOptions } from 'pdfjs-dist';
+import { analyzeContent } from './gemini';
+
+// Configure PDF.js worker
+GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
 let classifier: Pipeline | null = null;
 let modelLoading = false;
@@ -6,7 +11,6 @@ let modelLoading = false;
 export async function initializeModel() {
   try {
     if (modelLoading) {
-      // Wait for existing loading to complete
       await new Promise(resolve => {
         const checkLoading = () => {
           if (!modelLoading) {
@@ -23,18 +27,22 @@ export async function initializeModel() {
     if (!classifier) {
       modelLoading = true;
       try {
-        // Use a smaller, more efficient model for text classification
-        classifier = await pipeline('text-classification', 'Xenova/distilbert-base-uncased', {
-          quantized: true, // Use quantized model for better performance
+        classifier = await pipeline('text-classification', 'Xenova/bert-base-multilingual-uncased-sentiment', {
+          quantized: true,
           progress_callback: (progress) => {
             console.log('Loading model:', Math.round(progress * 100), '%');
-          }
+          },
+          cache: true,
+          retry: true,
+          retries: 3,
+          timeout: 60000,
+          fallbackToCache: true
         });
         console.log('Text classification model loaded successfully');
       } catch (error) {
         console.error('Failed to load text classification model:', error);
         classifier = null;
-        throw error;
+        return null;
       } finally {
         modelLoading = false;
       }
@@ -43,62 +51,179 @@ export async function initializeModel() {
   } catch (error) {
     console.error('Model initialization error:', error);
     modelLoading = false;
-    throw error;
+    return null;
   }
 }
 
 export async function analyzePDF(file: File): Promise<string> {
   try {
-    // If classifier is not available, use basic naming
-    if (!classifier) {
+    const text = await extractTextFromPDF(file);
+    if (!text) {
+      console.warn('No text extracted from PDF, falling back to basic naming');
       return generateBasicName(file);
     }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const text = await extractTextFromPDF(arrayBuffer);
     
-    // Generate name based on content analysis
+    // Use Gemini API for content analysis
+    try {
+      const suggestedName = await analyzeContent(text);
+      if (suggestedName) {
+        return `${suggestedName}_${new Date().toISOString().split('T')[0]}${getExtension(file.name)}`;
+      }
+    } catch (error) {
+      console.error('Gemini analysis error:', error);
+      // Fall back to local analysis if Gemini fails
+    }
+    
+    // Fallback to local analysis
     const category = await determineCategory(text);
     const documentType = determineDocumentType(text);
+    const keywords = extractKeywords(text);
     const date = new Date().toISOString().split('T')[0];
     
-    return `${category}_${documentType}_${date}${getExtension(file.name)}`;
+    return `${category}_${documentType}_${keywords}_${date}${getExtension(file.name)}`;
   } catch (error) {
     console.error('PDF analysis error:', error);
     return generateBasicName(file);
   }
 }
 
-async function extractTextFromPDF(arrayBuffer: ArrayBuffer): Promise<string> {
-  // Basic text extraction implementation
-  return 'document text';
+async function extractTextFromPDF(file: File): Promise<string> {
+  try {
+    const { getDocument } = await import('pdfjs-dist');
+    const data = await file.arrayBuffer();
+    const pdf = await getDocument({ data }).promise;
+    let text = '';
+
+    // Process more pages for better analysis
+    for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+      try {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item: any) => item.str)
+          .join(' ');
+        text += pageText + ' ';
+      } catch (pageError) {
+        console.error(`Error extracting text from page ${i}:`, pageError);
+        continue;
+      }
+    }
+
+    return text.trim() || '';
+  } catch (error) {
+    console.error('Text extraction error:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    return '';
+  }
 }
 
 async function determineCategory(text: string): Promise<string> {
-  try {
-    if (!classifier) {
-      return 'document';
-    }
+  if (!classifier) {
+    return 'document';
+  }
 
-    const result = await classifier.classify(text.slice(0, 500));
-    return result[0].label;
+  try {
+    // Analyze more text for better accuracy
+    const result = await classifier(text.slice(0, 1000));
+    const score = parseInt(result[0].label.split(' ')[0]);
+    
+    // Map sentiment scores to meaningful categories
+    const categoryMap: Record<number, string> = {
+      1: 'low_priority',
+      2: 'review_needed',
+      3: 'normal',
+      4: 'important',
+      5: 'critical'
+    };
+    
+    return categoryMap[score] || 'document';
   } catch (error) {
-    console.error('Category determination error:', error);
+    console.error('Category determination error:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
     return 'document';
   }
 }
 
 function determineDocumentType(text: string): string {
-  const types = ['report', 'letter', 'invoice', 'contract'];
-  return 'document';
+  try {
+    const types = [
+      'report', 'letter', 'invoice', 'contract', 'memo', 'proposal',
+      'agreement', 'presentation', 'analysis', 'review', 'summary',
+      'specification', 'manual', 'policy', 'plan', 'schedule'
+    ];
+    
+    const lowercaseText = text.toLowerCase();
+    const foundTypes = types.filter(type => lowercaseText.includes(type));
+    
+    return foundTypes[0] || 'document';
+  } catch (error) {
+    console.error('Document type determination error:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    return 'document';
+  }
+}
+
+function extractKeywords(text: string): string {
+  try {
+    // Simple keyword extraction based on word frequency
+    const words = text.toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .split(/\s+/)
+      .filter(word => word.length > 3);
+    
+    const wordFreq: Record<string, number> = {};
+    words.forEach(word => {
+      wordFreq[word] = (wordFreq[word] || 0) + 1;
+    });
+    
+    // Get top 3 most frequent words
+    const keywords = Object.entries(wordFreq)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([word]) => word)
+      .join('_');
+    
+    return keywords || 'no_keywords';
+  } catch (error) {
+    console.error('Keyword extraction error:', error);
+    return 'keywords_error';
+  }
 }
 
 function generateBasicName(file: File): string {
-  const date = new Date().toISOString().split('T')[0];
-  const type = file.type.split('/')[0] || 'document';
-  return `${type}_${date}_${Math.random().toString(36).substring(7)}${getExtension(file.name)}`;
+  try {
+    const date = new Date().toISOString().split('T')[0];
+    const type = file.type.split('/')[0] || 'document';
+    const randomId = Math.random().toString(36).substring(7);
+    return `${type}_${date}_${randomId}${getExtension(file.name)}`;
+  } catch (error) {
+    console.error('Basic name generation error:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    return `document_${Date.now()}${getExtension(file.name)}`;
+  }
 }
 
 function getExtension(filename: string): string {
-  return filename.slice((filename.lastIndexOf(".") - 1 >>> 0) + 1);
+  try {
+    return filename.slice((filename.lastIndexOf(".") - 1 >>> 0) + 1);
+  } catch (error) {
+    console.error('Extension extraction error:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    return '.txt';
+  }
 }
