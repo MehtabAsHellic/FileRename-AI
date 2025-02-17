@@ -27,7 +27,7 @@ export async function initializeModel() {
     if (!classifier) {
       modelLoading = true;
       try {
-        classifier = await pipeline('text-classification', 'Xenova/bert-base-multilingual-uncased-sentiment', {
+        classifier = await pipeline('text-classification', 'Xenova/distilbart-cnn-6-6', {
           quantized: true,
           progress_callback: (progress) => {
             console.log('Loading model:', Math.round(progress * 100), '%');
@@ -42,7 +42,6 @@ export async function initializeModel() {
       } catch (error) {
         console.error('Failed to load text classification model:', error);
         classifier = null;
-        return null;
       } finally {
         modelLoading = false;
       }
@@ -67,14 +66,13 @@ export async function analyzePDF(file: File): Promise<string> {
     try {
       const suggestedName = await analyzeContent(text);
       if (suggestedName) {
-        return `${suggestedName}_${new Date().toISOString().split('T')[0]}${getExtension(file.name)}`;
+        return `${suggestedName}${getExtension(file.name)}`;
       }
     } catch (error) {
       console.error('Gemini analysis error:', error);
-      // Fall back to local analysis if Gemini fails
     }
     
-    // Fallback to local analysis
+    // Fallback to local analysis if Gemini fails
     const category = await determineCategory(text);
     const documentType = determineDocumentType(text);
     const keywords = extractKeywords(text);
@@ -94,7 +92,6 @@ async function extractTextFromPDF(file: File): Promise<string> {
     const pdf = await getDocument({ data }).promise;
     let text = '';
 
-    // Process more pages for better analysis
     for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
       try {
         const page = await pdf.getPage(i);
@@ -111,11 +108,7 @@ async function extractTextFromPDF(file: File): Promise<string> {
 
     return text.trim() || '';
   } catch (error) {
-    console.error('Text extraction error:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
+    console.error('Text extraction error:', error);
     return '';
   }
 }
@@ -126,11 +119,9 @@ async function determineCategory(text: string): Promise<string> {
   }
 
   try {
-    // Analyze more text for better accuracy
     const result = await classifier(text.slice(0, 1000));
     const score = parseInt(result[0].label.split(' ')[0]);
     
-    // Map sentiment scores to meaningful categories
     const categoryMap: Record<number, string> = {
       1: 'low_priority',
       2: 'review_needed',
@@ -141,11 +132,7 @@ async function determineCategory(text: string): Promise<string> {
     
     return categoryMap[score] || 'document';
   } catch (error) {
-    console.error('Category determination error:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
+    console.error('Category determination error:', error);
     return 'document';
   }
 }
@@ -163,18 +150,13 @@ function determineDocumentType(text: string): string {
     
     return foundTypes[0] || 'document';
   } catch (error) {
-    console.error('Document type determination error:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
+    console.error('Document type determination error:', error);
     return 'document';
   }
 }
 
 function extractKeywords(text: string): string {
   try {
-    // Simple keyword extraction based on word frequency
     const words = text.toLowerCase()
       .replace(/[^\w\s]/g, '')
       .split(/\s+/)
@@ -185,7 +167,6 @@ function extractKeywords(text: string): string {
       wordFreq[word] = (wordFreq[word] || 0) + 1;
     });
     
-    // Get top 3 most frequent words
     const keywords = Object.entries(wordFreq)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 3)
@@ -206,11 +187,7 @@ function generateBasicName(file: File): string {
     const randomId = Math.random().toString(36).substring(7);
     return `${type}_${date}_${randomId}${getExtension(file.name)}`;
   } catch (error) {
-    console.error('Basic name generation error:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
+    console.error('Basic name generation error:', error);
     return `document_${Date.now()}${getExtension(file.name)}`;
   }
 }
@@ -219,11 +196,7 @@ function getExtension(filename: string): string {
   try {
     return filename.slice((filename.lastIndexOf(".") - 1 >>> 0) + 1);
   } catch (error) {
-    console.error('Extension extraction error:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
+    console.error('Extension extraction error:', error);
     return '.txt';
   }
 }

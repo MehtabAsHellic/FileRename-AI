@@ -58,7 +58,6 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
       const zip = new JSZip();
       
       try {
-        // Process files in smaller chunks to prevent memory issues
         const chunkSize = 5;
         for (let i = 0; i < filesToDownload.length; i += chunkSize) {
           const chunk = filesToDownload.slice(i, i + chunkSize);
@@ -70,7 +69,6 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
             }
           }));
 
-          // Add a small delay between chunks
           if (i + chunkSize < filesToDownload.length) {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
@@ -99,9 +97,8 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
         setIsZipping(false);
       }
     } else {
-      // Download files individually
       for (const file of filesToDownload) {
-        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 100));
         onDownload(file);
       }
       toast.success('Files downloaded successfully!');
@@ -128,19 +125,19 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
         </div>
         
         {files.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
             <button
               onClick={handleSelectAll}
-              className="text-sm text-gray-600 hover:text-gray-900"
+              className="text-sm text-gray-600 hover:text-gray-900 whitespace-nowrap"
             >
               {selectedFiles.size === files.length ? 'Deselect All' : 'Select All'}
             </button>
             
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <button
                 onClick={() => handleBulkDownload(true)}
                 disabled={selectedFiles.size === 0 || isZipping}
-                className={`flex items-center px-4 py-2 rounded-lg text-white transition-colors duration-200
+                className={`flex items-center justify-center px-4 py-2 rounded-lg text-white transition-colors duration-200 w-full sm:w-auto
                   ${selectedFiles.size === 0 || isZipping
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 hover:bg-blue-700'}`}
@@ -150,19 +147,19 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
                 ) : (
                   <Archive className="w-4 h-4 mr-2" />
                 )}
-                Download as ZIP ({selectedCount})
+                <span className="whitespace-nowrap">Download as ZIP ({selectedCount})</span>
               </button>
               
               <button
                 onClick={() => handleBulkDownload(false)}
                 disabled={selectedFiles.size === 0}
-                className={`flex items-center px-4 py-2 rounded-lg text-white transition-colors duration-200
+                className={`flex items-center justify-center px-4 py-2 rounded-lg text-white transition-colors duration-200 w-full sm:w-auto
                   ${selectedFiles.size === 0
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-green-600 hover:bg-green-700'}`}
               >
                 <Download className="w-4 h-4 mr-2" />
-                Download Separately ({selectedCount})
+                <span className="whitespace-nowrap">Download Separately ({selectedCount})</span>
               </button>
             </div>
           </div>
@@ -177,30 +174,32 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
               className={`p-4 transition-colors duration-150
                 ${selectedFiles.has(file.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
             >
-              <div className="flex items-center">
-                <div className="flex-shrink-0 mr-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedFiles.has(file.id)}
-                    onChange={() => handleSelectFile(file.id)}
-                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                  />
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0 mr-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedFiles.has(file.id)}
+                      onChange={() => handleSelectFile(file.id)}
+                      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div className="flex-shrink-0">
+                    <File className="w-6 h-6 text-gray-400" />
+                  </div>
                 </div>
                 
-                <div className="flex-shrink-0">
-                  <File className="w-6 h-6 text-gray-400" />
-                </div>
-                
-                <div className="flex-1 min-w-0 ml-4">
-                  <div className="flex justify-between items-start">
-                    <div className="truncate flex-1">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 break-all">
                         {file.originalName}
                       </p>
                       {file.newName && (
                         <div className="flex items-center text-sm text-gray-500 mt-1">
                           <span className="text-gray-400 mr-2">→</span>
-                          <span className="truncate">{file.newName}</span>
+                          <span className="break-all">{file.newName}</span>
                         </div>
                       )}
                       <FileConversionOptions
@@ -208,10 +207,10 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
                         onConvert={(options) => onConvert(file, options)}
                       />
                     </div>
-                    <div className="ml-4 flex items-center space-x-3">
+                    <div className="flex flex-wrap items-center gap-2">
                       {file.status === 'uploading' && (
-                        <div className="flex items-center">
-                          <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 bg-gray-200 rounded-full h-2">
                             <div
                               className="bg-blue-600 h-2 rounded-full transition-all duration-150"
                               style={{ width: `${file.progress}%` }}
