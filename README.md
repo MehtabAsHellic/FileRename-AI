@@ -2,7 +2,7 @@
 
 Harness the power of AI to automatically organize and rename your files with meaningful, context-aware names. Perfect for professionals, teams, and content creators.
 
-[Live Demo](https://filerename.netlify.app) • [GitHub Repository](https://github.com/MehtabAsHellic/FileRename-AI)
+[Live Demo](https://filerenameai.vercel.app) • [GitHub Repository](https://github.com/MehtabAsHellic/FileRename-AI)
 
 ## Overview
 
