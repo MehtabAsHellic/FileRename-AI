@@ -32,7 +32,7 @@ export function Hero() {
 
           <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 text-purple-600 mb-4">
             <Wand2 className="w-4 h-4 mr-2" />
-            <span className="text-sm font-medium">Inside FileRename-AI</span>
+            <span className="text-sm font-medium">AI-Powered File Organization</span>
           </div>
 
           <h1 className="text-5xl font-bold text-gray-900 mb-6">

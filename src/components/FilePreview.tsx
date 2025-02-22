@@ -1,6 +1,6 @@
 import React, { useState, useEffect, memo } from 'react';
 import { FileItem } from '../types';
-import { X, FileText, Image as ImageIcon } from 'lucide-react';
+import { X, FileText, Download, ExternalLink } from 'lucide-react';
 
 interface FilePreviewProps {
   file: FileItem;
@@ -10,6 +10,12 @@ interface FilePreviewProps {
 export const FilePreview = memo(function FilePreview({ file, onClose }: FilePreviewProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Check if device is mobile
+    setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -45,6 +51,24 @@ export const FilePreview = memo(function FilePreview({ file, onClose }: FilePrev
 
   const isImage = file.type.startsWith('image/');
   const isPDF = file.type === 'application/pdf';
+  const isDocument = file.type.includes('document') || isPDF;
+
+  const handleDownload = () => {
+    if (previewUrl) {
+      const a = document.createElement('a');
+      a.href = previewUrl;
+      a.download = file.originalName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
+
+  const openInNewTab = () => {
+    if (previewUrl) {
+      window.open(previewUrl, '_blank');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -78,12 +102,39 @@ export const FilePreview = memo(function FilePreview({ file, onClose }: FilePrev
               className="max-w-full max-h-[60vh] object-contain mx-auto"
               loading="lazy"
             />
-          ) : isPDF && previewUrl ? (
-            <iframe
-              src={previewUrl}
-              className="w-full h-[60vh]"
-              title={file.originalName}
-            />
+          ) : isDocument && previewUrl ? (
+            isMobile ? (
+              <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                <FileText className="w-16 h-16 text-gray-400" />
+                <p className="text-gray-600 text-center">
+                  Document preview is not available on mobile devices.
+                  <br />
+                  Please use one of the options below:
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={openInNewTab}
+                    className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Open in Browser
+                  </button>
+                  <button
+                    onClick={handleDownload}
+                    className="flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <iframe
+                src={previewUrl}
+                className="w-full h-[60vh]"
+                title={file.originalName}
+              />
+            )
           ) : (
             <div className="flex flex-col items-center justify-center py-12">
               <FileText className="w-16 h-16 text-gray-400 mb-4" />
@@ -100,6 +151,24 @@ export const FilePreview = memo(function FilePreview({ file, onClose }: FilePrev
                 {(file.size / 1024 / 1024).toFixed(2)} MB • {file.type}
               </p>
             </div>
+            {!isMobile && isDocument && (
+              <div className="flex gap-2">
+                <button
+                  onClick={openInNewTab}
+                  className="flex items-center px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Open in New Tab
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center px-3 py-2 text-sm font-medium text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

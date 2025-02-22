@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import CountUp from 'react-countup';
 import { useInView } from 'react-intersection-observer';
-import { FileCheck, Users, Clock, Award, ArrowUpRight } from 'lucide-react';
+import { FileCheck, Users, Clock, ArrowUpRight } from 'lucide-react';
 import { statsService } from '../utils/stats';
 
 interface StatItemProps {
@@ -38,7 +38,6 @@ function StatItem({ icon, value, label, suffix = '', delay = 0 }: StatItemProps)
                 delay={delay}
                 separator=","
                 suffix={suffix}
-                decimals={suffix === '/5' ? 1 : 0}
               />
             ) : (
               '0'
@@ -58,8 +57,7 @@ export function Stats() {
   const [stats, setStats] = useState({
     totalFiles: 0,
     uniqueVisitors: 0,
-    timeSavings: 0,
-    rating: 5.0
+    timeSavings: 0
   });
 
   useEffect(() => {
@@ -89,14 +87,14 @@ export function Stats() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            Real-Time Platform Statistics
+            Your Activity Statistics
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            See how FileRename-AI is helping users organize their files more efficiently
+            Track how FileRename-AI is helping you organize your files more efficiently
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid md:grid-cols-3 gap-8">
           <StatItem
             icon={<FileCheck className="w-6 h-6 text-white" />}
             value={stats.totalFiles}
@@ -106,7 +104,7 @@ export function Stats() {
           <StatItem
             icon={<Users className="w-6 h-6 text-white" />}
             value={stats.uniqueVisitors}
-            label="Unique Visitors"
+            label="Sessions"
             delay={0.2}
           />
           <StatItem
@@ -116,19 +114,12 @@ export function Stats() {
             suffix="%"
             delay={0.4}
           />
-          <StatItem
-            icon={<Award className="w-6 h-6 text-white" />}
-            value={stats.rating}
-            label="User Rating"
-            suffix="/5"
-            delay={0.6}
-          />
         </div>
 
         <div className="mt-16 text-center">
           <div className="inline-flex items-center px-6 py-3 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 text-purple-600">
             <span className="text-sm font-medium">
-              Statistics updated in real-time
+              These statistics reflect your personal usage and are updated in real-time based on your activity
             </span>
           </div>
         </div>

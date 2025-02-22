@@ -83,8 +83,7 @@ const getStats = () => {
   return {
     totalFiles: stats.totalFiles || 0,
     uniqueVisitors: Array.isArray(stats.uniqueVisitors) ? stats.uniqueVisitors.length : 0,
-    timeSavings: calculateTimeSavings(),
-    rating: 5.0 // This should come from a real rating system
+    timeSavings: calculateTimeSavings()
   };
 };
 
