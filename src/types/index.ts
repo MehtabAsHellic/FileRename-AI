@@ -11,11 +11,15 @@ export interface FileItem {
   convertedFile?: File;
   convertedType?: string;
   preview?: string;
+  history?: string[]; // Track name history for undo
+  aiGenerated?: boolean; // Flag for AI-generated names
 }
 
 export interface RenamePattern {
   type: 'ai' | 'pattern';
   pattern?: string;
+  previousType?: 'ai' | 'pattern'; // Track previous pattern type for undo
+  previousPattern?: string; // Track previous pattern for undo
 }
 
 export interface ConversionOptions {

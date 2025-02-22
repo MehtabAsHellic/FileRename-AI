@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { FileItem, ConversionOptions } from '../types';
-import { File, CheckCircle, AlertCircle, Loader2, Download, Trash2, PackageCheck, Archive, Eye, FileText } from 'lucide-react';
+import { 
+  File, CheckCircle, AlertCircle, Loader2, Download, Trash2, 
+  PackageCheck, Archive, Eye, FileText, Edit2, Undo2, Save, X
+} from 'lucide-react';
 import { FileConversionOptions } from './ConversionOptions';
 import { DocumentAnalyzer } from './DocumentAnalyzer';
 import JSZip from 'jszip';
@@ -12,12 +15,24 @@ interface FileListProps {
   onRemove: (fileId: string) => void;
   onPreview: (file: FileItem) => void;
   onConvert: (file: FileItem, options: ConversionOptions) => void;
+  onRename: (fileId: string, newName: string) => void;
+  onUndoRename: (fileId: string) => void;
 }
 
-export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: FileListProps) {
+export function FileList({ 
+  files, 
+  onDownload, 
+  onRemove, 
+  onPreview, 
+  onConvert,
+  onRename,
+  onUndoRename 
+}: FileListProps) {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [isZipping, setIsZipping] = useState(false);
   const [analyzingFile, setAnalyzingFile] = useState<FileItem | null>(null);
+  const [editingFileId, setEditingFileId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   if (files.length === 0) {
     return null;
@@ -111,6 +126,32 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
     }
   };
 
+  const handleStartEdit = (file: FileItem) => {
+    setEditingFileId(file.id);
+    setEditValue(file.newName || file.originalName);
+  };
+
+  const handleSaveEdit = (fileId: string) => {
+    if (editValue.trim()) {
+      onRename(fileId, editValue.trim());
+      setEditingFileId(null);
+      setEditValue('');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingFileId(null);
+    setEditValue('');
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent, fileId: string) => {
+    if (e.key === 'Enter') {
+      handleSaveEdit(fileId);
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  };
+
   const completedCount = files.filter(f => f.status === 'completed').length;
   const selectedCount = selectedFiles.size;
 
@@ -196,12 +237,58 @@ export function FileList({ files, onDownload, onRemove, onPreview, onConvert }: 
                       <p className="text-sm font-medium text-gray-900 break-all">
                         {file.originalName}
                       </p>
-                      {file.newName && (
+                      {file.newName && editingFileId !== file.id ? (
                         <div className="flex items-center text-sm text-gray-500 mt-1">
                           <span className="text-gray-400 mr-2">→</span>
                           <span className="break-all">{file.newName}</span>
+                          {file.status === 'completed' && (
+                            <div className="ml-2 flex items-center space-x-2">
+                              <button
+                                onClick={() => handleStartEdit(file)}
+                                className="p-1 hover:bg-gray-100 rounded-lg transition-colors duration-150"
+                                title="Edit name"
+                              >
+                                <Edit2 className="w-4 h-4 text-gray-500 hover:text-blue-500" />
+                              </button>
+                              {file.history && file.history.length > 0 && (
+                                <button
+                                  onClick={() => onUndoRename(file.id)}
+                                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors duration-150"
+                                  title="Undo rename"
+                                >
+                                  <Undo2 className="w-4 h-4 text-gray-500 hover:text-blue-500" />
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      )}
+                      ) : editingFileId === file.id ? (
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className="text-gray-400 mr-2">→</span>
+                          <input
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={(e) => handleKeyPress(e, file.id)}
+                            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleSaveEdit(file.id)}
+                            className="p-1 hover:bg-blue-100 rounded-lg transition-colors duration-150"
+                            title="Save"
+                          >
+                            <Save className="w-4 h-4 text-blue-500" />
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            className="p-1 hover:bg-gray-100 rounded-lg transition-colors duration-150"
+                            title="Cancel"
+                          >
+                            <X className="w-4 h-4 text-gray-500" />
+                          </button>
+                        </div>
+                      ) : null}
                       <FileConversionOptions
                         file={file}
                         onConvert={(options) => onConvert(file, options)}

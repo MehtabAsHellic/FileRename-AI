@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { RenamePattern } from '../types';
-import { Wand2, FileType2, RefreshCw, Calendar, Hash, Tag, FileText, Type, Save, Plus, Trash2, HelpCircle } from 'lucide-react';
+import { 
+  Wand2, FileType2, RefreshCw, Calendar, Hash, Tag, FileText, 
+  Type, Save, Plus, Trash2, HelpCircle, Undo2 
+} from 'lucide-react';
 
 interface PatternInputProps {
   pattern: RenamePattern;
   onChange: (pattern: RenamePattern) => void;
   onApply: () => void;
+  onUndo: () => void;
   disabled?: boolean;
 }
 
@@ -15,7 +19,13 @@ interface SavedPattern {
   pattern: string;
 }
 
-export function PatternInput({ pattern, onChange, onApply, disabled }: PatternInputProps) {
+export function PatternInput({ 
+  pattern, 
+  onChange, 
+  onApply, 
+  onUndo,
+  disabled 
+}: PatternInputProps) {
   const [savedPatterns, setSavedPatterns] = useState<SavedPattern[]>(() => {
     const saved = localStorage.getItem('savedPatterns');
     return saved ? JSON.parse(saved) : [];
@@ -159,6 +169,15 @@ export function PatternInput({ pattern, onChange, onApply, disabled }: PatternIn
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Apply Pattern
               </button>
+              {pattern.previousType && (
+                <button
+                  onClick={onUndo}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors duration-200"
+                >
+                  <Undo2 className="w-4 h-4 mr-2" />
+                  Undo Changes
+                </button>
+              )}
             </div>
           </div>
 

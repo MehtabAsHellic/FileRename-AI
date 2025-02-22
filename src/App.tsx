@@ -3,6 +3,7 @@ import { FileUploader } from './components/FileUploader';
 import { FileList } from './components/FileList';
 import { PatternInput } from './components/PatternInput';
 import { Hero } from './components/Hero';
+import { Stats } from './components/Stats';
 import { Overview } from './components/Overview';
 import { Problem } from './components/Problem';
 import { Technology } from './components/Technology';
@@ -20,6 +21,7 @@ import { Loader2, ArrowUp } from 'lucide-react';
 import { analyzePDF } from './utils/fileAnalyzer';
 import { initializeModel } from './utils/fileAnalyzer';
 import { convertFile } from './utils/fileConverter';
+import { statsService } from './utils/stats';
 import toast from 'react-hot-toast';
 
 function App() {
@@ -30,7 +32,53 @@ function App() {
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
 
-  // Initialize model in the background
+  const handlePatternChange = (newPattern: RenamePattern) => {
+    setPattern({
+      ...newPattern,
+      previousType: pattern.type,
+      previousPattern: pattern.pattern
+    });
+  };
+
+  const handleUndoPattern = () => {
+    if (pattern.previousType) {
+      setPattern({
+        type: pattern.previousType,
+        pattern: pattern.previousPattern
+      });
+      handleApplyPattern();
+    }
+  };
+
+  const handleRename = (fileId: string, newName: string) => {
+    setFiles(prev => prev.map(file => {
+      if (file.id === fileId) {
+        const history = file.history || [];
+        return {
+          ...file,
+          newName,
+          history: [...history, file.newName || file.originalName]
+        };
+      }
+      return file;
+    }));
+  };
+
+  const handleUndoRename = (fileId: string) => {
+    setFiles(prev => prev.map(file => {
+      if (file.id === fileId && file.history?.length) {
+        const history = [...(file.history || [])];
+        const previousName = history.pop();
+        return {
+          ...file,
+          newName: previousName || file.originalName,
+          history
+        };
+      }
+      return file;
+    }));
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -61,7 +109,6 @@ function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Track number of files currently uploading
   useEffect(() => {
     const uploading = files.filter(f => f.status === 'uploading').length;
     setUploadingCount(uploading);
@@ -95,6 +142,8 @@ function App() {
 
     try {
       for (const fileItem of newFiles) {
+        const startTime = performance.now();
+        
         try {
           const uploadInterval = setInterval(() => {
             setFiles((prev) =>
@@ -126,6 +175,10 @@ function App() {
                 : f
             )
           );
+
+          const processingTime = performance.now() - startTime;
+          statsService.trackFileProcessing(fileItem, processingTime);
+          
         } catch (error) {
           console.error(`Error processing file ${fileItem.originalName}:`, error);
           setFiles((prev) =>
@@ -276,9 +329,9 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <Hero />
+      <Stats />
       <Overview />
       
-      {/* Product Section */}
       <section className="py-12 bg-gradient-to-b from-white to-purple-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
@@ -294,8 +347,9 @@ function App() {
             <div className="space-y-8" id="upload">
               <PatternInput
                 pattern={pattern}
-                onChange={setPattern}
+                onChange={handlePatternChange}
                 onApply={handleApplyPattern}
+                onUndo={handleUndoPattern}
                 disabled={isProcessing}
               />
               
@@ -310,6 +364,8 @@ function App() {
                 onRemove={handleRemove}
                 onPreview={handlePreviewFile}
                 onConvert={handleConvertFile}
+                onRename={handleRename}
+                onUndoRename={handleUndoRename}
               />
             </div>
           </div>
@@ -333,7 +389,6 @@ function App() {
         />
       )}
 
-      {/* Fixed position buttons - Chatbot on right, Scroll on left */}
       <div className="fixed bottom-8 right-8 z-50">
         <Chatbot />
       </div>
