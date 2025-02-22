@@ -70,7 +70,7 @@ export function Chatbot() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-8 right-8 p-4 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-colors duration-200 z-50"
+        className="p-4 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-colors duration-200"
         aria-label="Open chat"
       >
         <MessageCircle className="w-6 h-6" />
@@ -80,9 +80,9 @@ export function Chatbot() {
 
   return (
     <div
-      className={`fixed right-8 bottom-8 bg-white rounded-lg shadow-xl z-50 transition-all duration-300 ${
-        isMinimized ? 'w-72 h-14' : 'w-96 h-[600px]'
-      }`}
+      className={`bg-white rounded-lg shadow-xl transition-all duration-300 
+        ${isMinimized ? 'w-72 h-14' : 'w-[calc(100vw-2rem)] md:w-96 h-[80vh] md:h-[600px]'}
+        fixed bottom-0 right-0 md:relative md:bottom-auto md:right-auto`}
     >
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center space-x-2">
@@ -111,7 +111,7 @@ export function Chatbot() {
 
       {!isMinimized && (
         <>
-          <div className="flex-1 p-4 overflow-y-auto h-[calc(600px-8rem)]">
+          <div className="flex-1 p-4 overflow-y-auto h-[calc(100%-8rem)]">
             <div className="space-y-4">
               {messages.map((message) => (
                 <div

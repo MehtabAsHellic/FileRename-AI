@@ -1,8 +1,15 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { FileUploader } from './components/FileUploader';
 import { FileList } from './components/FileList';
 import { PatternInput } from './components/PatternInput';
 import { Hero } from './components/Hero';
+import { Overview } from './components/Overview';
+import { Problem } from './components/Problem';
+import { Technology } from './components/Technology';
+import { UseCases } from './components/UseCases';
+import { Roadmap } from './components/Roadmap';
+import { FAQ } from './components/FAQ';
+import { GetStarted } from './components/GetStarted';
 import { Header } from './components/Header';
 import { Testimonials } from './components/Testimonials';
 import { Footer } from './components/Footer';
@@ -268,33 +275,54 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      <Hero onStartRenaming={() => scrollToSection('upload')} />
-
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="space-y-8" id="upload">
-          <PatternInput
-            pattern={pattern}
-            onChange={setPattern}
-            onApply={handleApplyPattern}
-            disabled={isProcessing}
-          />
+      <Hero />
+      <Overview />
+      
+      {/* Product Section */}
+      <section className="py-12 bg-gradient-to-b from-white to-purple-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Experience Our Product
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Transform your file management with our powerful AI-driven tools
+            </p>
+          </div>
           
-          <FileUploader
-            onFilesSelected={handleFilesSelected}
-            disabled={isProcessing}
-          />
-          
-          <FileList
-            files={files}
-            onDownload={handleDownload}
-            onRemove={handleRemove}
-            onPreview={handlePreviewFile}
-            onConvert={handleConvertFile}
-          />
+          <div className="max-w-5xl mx-auto">
+            <div className="space-y-8" id="upload">
+              <PatternInput
+                pattern={pattern}
+                onChange={setPattern}
+                onApply={handleApplyPattern}
+                disabled={isProcessing}
+              />
+              
+              <FileUploader
+                onFilesSelected={handleFilesSelected}
+                disabled={isProcessing}
+              />
+              
+              <FileList
+                files={files}
+                onDownload={handleDownload}
+                onRemove={handleRemove}
+                onPreview={handlePreviewFile}
+                onConvert={handleConvertFile}
+              />
+            </div>
+          </div>
         </div>
-      </main>
+      </section>
 
+      <Problem />
+      <Technology />
+      <UseCases />
+      <Roadmap />
+      <GetStarted />
       <Testimonials />
+      <FAQ />
       <Footer />
 
       {previewFile && (
@@ -305,16 +333,21 @@ function App() {
         />
       )}
 
-      <Chatbot />
+      {/* Fixed position buttons - Chatbot on right, Scroll on left */}
+      <div className="fixed bottom-8 right-8 z-50">
+        <Chatbot />
+      </div>
 
       {showScrollTop && (
-        <button
-          onClick={scrollToTop}
-          className="fixed bottom-8 left-8 p-4 bg-purple-600 text-white rounded-full shadow-lg hover:bg-purple-700 transition-colors duration-200 z-50"
-          aria-label="Scroll to top"
-        >
-          <ArrowUp className="w-6 h-6" />
-        </button>
+        <div className="fixed bottom-8 left-8 z-50">
+          <button
+            onClick={scrollToTop}
+            className="p-4 bg-purple-600 text-white rounded-full shadow-lg hover:bg-purple-700 transition-all duration-200 transform hover:scale-110"
+            aria-label="Scroll to top"
+          >
+            <ArrowUp className="w-6 h-6" />
+          </button>
+        </div>
       )}
     </div>
   );
