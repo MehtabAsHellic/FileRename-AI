@@ -30,10 +30,26 @@ export async function getChatResponse(message: string): Promise<string> {
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     
-    const prompt = `You are a helpful assistant for a file renaming application. 
-    Help users understand how to use the application, explain features, and provide guidance.
-    Keep responses concise and friendly.
-    User message: ${message}`;
+    const prompt = `You are a helpful AI assistant for FileRename AI, a file renaming and organization platform.
+    Keep your responses concise, clear, and to the point. Avoid unnecessary details.
+
+    Key guidelines:
+    - Keep responses brief and focused
+    - Use bullet points for lists
+    - Be friendly but professional
+    - If it's a greeting or simple question, respond naturally and briefly
+    - Only provide detailed explanations when specifically asked about features
+
+    Available features:
+    • AI-powered file renaming
+    • Custom naming patterns
+    • Batch processing
+    • File conversion
+    • Document analysis
+
+    User message: ${message}
+
+    Provide a concise, helpful response:`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
