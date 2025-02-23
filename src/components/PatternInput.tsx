@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { RenamePattern } from '../types';
 import { 
   Wand2, FileType2, RefreshCw, Calendar, Hash, Tag, FileText, 
-  Type, Save, Plus, Trash2, HelpCircle, Undo2 
+  Type, Save, Plus, Trash2, HelpCircle, Undo2, Brain, Settings,
+  Info, CheckCircle
 } from 'lucide-react';
 
 interface PatternInputProps {
@@ -18,6 +19,15 @@ interface SavedPattern {
   name: string;
   pattern: string;
 }
+
+const tokens = [
+  { token: '{date}', icon: Calendar, description: 'Current date (YYYY-MM-DD)' },
+  { token: '{type}', icon: FileType2, description: 'File type (e.g., pdf, doc)' },
+  { token: '{original}', icon: FileText, description: 'Original filename' },
+  { token: '{counter}', icon: Hash, description: 'Sequential number' },
+  { token: '{category}', icon: Tag, description: 'Detected document category' },
+  { token: '{title}', icon: Type, description: 'Document title if available' }
+];
 
 export function PatternInput({ 
   pattern, 
@@ -35,15 +45,7 @@ export function PatternInput({
   const [newPatternName, setNewPatternName] = useState('');
   const [showAIInfo, setShowAIInfo] = useState(false);
   const [showPatternInfo, setShowPatternInfo] = useState(false);
-
-  const tokens = [
-    { token: '{date}', icon: Calendar, description: 'Current date (YYYY-MM-DD)' },
-    { token: '{type}', icon: FileType2, description: 'File type (e.g., pdf, doc)' },
-    { token: '{original}', icon: FileText, description: 'Original filename' },
-    { token: '{counter}', icon: Hash, description: 'Sequential number' },
-    { token: '{category}', icon: Tag, description: 'Detected document category' },
-    { token: '{title}', icon: Type, description: 'Document title if available' }
-  ];
+  const [activeTab, setActiveTab] = useState<'ai' | 'pattern'>(pattern.type);
 
   const handleSavePattern = () => {
     if (!newPatternName || !pattern.pattern) return;
@@ -67,96 +69,87 @@ export function PatternInput({
     localStorage.setItem('savedPatterns', JSON.stringify(updatedPatterns));
   };
 
+  const handleTabChange = (tab: 'ai' | 'pattern') => {
+    setActiveTab(tab);
+    onChange({ type: tab, pattern: tab === 'pattern' ? '' : undefined });
+  };
+
   return (
-    <div className="space-y-6 bg-white p-4 sm:p-6 rounded-xl shadow-md">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div
-          onClick={() => onChange({ type: 'ai' })}
-          className={`p-4 sm:p-6 rounded-xl border-2 transition-all duration-200 relative cursor-pointer
-            ${pattern.type === 'ai'
-              ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
-              : 'border-gray-200 hover:border-gray-300 hover:shadow'
-            } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          <div className="flex items-center justify-center mb-3">
-            <Wand2 className="w-6 h-6 mr-2" />
-            <h3 className="font-semibold">AI Renaming</h3>
-          </div>
-          <p className="text-sm text-gray-600 text-center">
-            Smart file naming based on content analysis using advanced AI models
-          </p>
-          <div 
-            className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowAIInfo(!showAIInfo);
-            }}
+    <div className="space-y-6">
+      {/* Mode Selection Tabs */}
+      <div className="flex justify-center">
+        <div className="bg-gray-100 p-1 rounded-xl inline-flex">
+          <button
+            onClick={() => handleTabChange('ai')}
+            className={`flex items-center px-4 py-2 rounded-lg transition-all duration-200 ${
+              activeTab === 'ai'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
           >
-            <HelpCircle className="w-5 h-5" />
-          </div>
-          {showAIInfo && (
-            <div className="absolute top-full mt-2 right-0 w-64 p-4 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-              <h4 className="font-medium text-gray-900 mb-2">AI Renaming</h4>
-              <p className="text-sm text-gray-600">
-                Our AI analyzes your files' content to generate meaningful names automatically.
-                Works best with documents, images, and PDFs.
-              </p>
-            </div>
-          )}
-        </div>
-        
-        <div
-          onClick={() => onChange({ type: 'pattern', pattern: '' })}
-          className={`p-4 sm:p-6 rounded-xl border-2 transition-all duration-200 relative cursor-pointer
-            ${pattern.type === 'pattern'
-              ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
-              : 'border-gray-200 hover:border-gray-300 hover:shadow'
-            } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          <div className="flex items-center justify-center mb-3">
-            <FileType2 className="w-6 h-6 mr-2" />
-            <h3 className="font-semibold">Custom Pattern</h3>
-          </div>
-          <p className="text-sm text-gray-600 text-center">
-            Create your own naming pattern using dynamic tokens and custom rules
-          </p>
-          <div 
-            className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowPatternInfo(!showPatternInfo);
-            }}
+            <Brain className="w-5 h-5 mr-2" />
+            AI Renaming
+          </button>
+          <button
+            onClick={() => handleTabChange('pattern')}
+            className={`flex items-center px-4 py-2 rounded-lg transition-all duration-200 ${
+              activeTab === 'pattern'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
           >
-            <HelpCircle className="w-5 h-5" />
-          </div>
-          {showPatternInfo && (
-            <div className="absolute top-full mt-2 right-0 w-64 p-4 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-              <h4 className="font-medium text-gray-900 mb-2">Custom Pattern</h4>
-              <p className="text-sm text-gray-600">
-                Define your own naming format using tokens like {'{date}'}, {'{type}'}, etc.
-                Perfect for consistent file organization.
-              </p>
-            </div>
-          )}
+            <Settings className="w-5 h-5 mr-2" />
+            Custom Pattern
+          </button>
         </div>
       </div>
 
-      {pattern.type === 'pattern' && (
-        <div className="space-y-4 bg-gray-50 p-4 sm:p-6 rounded-lg">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              type="text"
-              value={pattern.pattern || ''}
-              onChange={(e) => onChange({ type: 'pattern', pattern: e.target.value })}
-              placeholder="e.g., {date}-{category}-{original}"
-              className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={disabled}
-            />
-            <div className="flex flex-col sm:flex-row gap-2">
+      {/* Mode Description */}
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+        <div className="flex items-start space-x-3">
+          <Info className="w-5 h-5 text-blue-500 mt-0.5" />
+          <div>
+            <h4 className="font-medium text-blue-900">
+              {activeTab === 'ai' ? 'AI-Powered Renaming' : 'Custom Pattern Renaming'}
+            </h4>
+            <p className="text-sm text-blue-700 mt-1">
+              {activeTab === 'ai'
+                ? 'Our AI analyzes your files to generate meaningful, context-aware names automatically.'
+                : 'Create your own naming pattern using tokens to maintain consistent file organization.'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {activeTab === 'pattern' && (
+        <div className="space-y-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Pattern
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={pattern.pattern || ''}
+                  onChange={(e) => onChange({ type: 'pattern', pattern: e.target.value })}
+                  placeholder="e.g., {date}-{category}-{original}"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  disabled={disabled}
+                />
+                {pattern.pattern && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 sm:self-end">
               <button
                 onClick={() => setShowSaveDialog(true)}
                 disabled={disabled || !pattern.pattern}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors duration-200"
+                className="px-4 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 hover:shadow-md"
               >
                 <Save className="w-4 h-4 mr-2" />
                 Save Pattern
@@ -164,7 +157,7 @@ export function PatternInput({
               <button
                 onClick={onApply}
                 disabled={disabled || !pattern.pattern}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors duration-200"
+                className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 hover:shadow-md"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Apply Pattern
@@ -172,7 +165,7 @@ export function PatternInput({
               {pattern.previousType && (
                 <button
                   onClick={onUndo}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors duration-200"
+                  className="px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 hover:shadow-md"
                 >
                   <Undo2 className="w-4 h-4 mr-2" />
                   Undo Changes
@@ -181,27 +174,28 @@ export function PatternInput({
             </div>
           </div>
 
+          {/* Save Pattern Dialog */}
           {showSaveDialog && (
-            <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
-              <h4 className="text-sm font-medium text-gray-900 mb-2">Save Pattern</h4>
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h4 className="text-sm font-medium text-gray-900 mb-3">Save Pattern</h4>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={newPatternName}
                   onChange={(e) => setNewPatternName(e.target.value)}
                   placeholder="Pattern name"
-                  className="flex-1 p-2 border border-gray-300 rounded-lg text-sm"
+                  className="flex-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={handleSavePattern}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 whitespace-nowrap"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-all duration-200"
                   >
                     Save
                   </button>
                   <button
                     onClick={() => setShowSaveDialog(false)}
-                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-300 whitespace-nowrap"
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-300 transition-all duration-200"
                   >
                     Cancel
                   </button>
@@ -210,36 +204,44 @@ export function PatternInput({
             </div>
           )}
           
+          {/* Saved Patterns */}
           {savedPatterns.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-700">Saved Patterns:</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-gray-700">Saved Patterns</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {savedPatterns.map((savedPattern) => (
                   <div
                     key={savedPattern.id}
-                    className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-200"
+                    className="group bg-white rounded-lg border border-gray-200 p-3 hover:border-blue-300 hover:shadow-sm transition-all duration-200"
                   >
-                    <div
-                      onClick={() => onChange({ type: 'pattern', pattern: savedPattern.pattern })}
-                      className="flex-1 cursor-pointer hover:text-blue-600"
-                    >
-                      <p className="text-sm font-medium">{savedPattern.name}</p>
-                      <p className="text-xs text-gray-500 break-all">{savedPattern.pattern}</p>
+                    <div className="flex items-center justify-between">
+                      <div
+                        onClick={() => onChange({ type: 'pattern', pattern: savedPattern.pattern })}
+                        className="flex-1 cursor-pointer"
+                      >
+                        <p className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors duration-200">
+                          {savedPattern.name}
+                        </p>
+                        <p className="text-sm text-gray-500 break-all mt-1">
+                          {savedPattern.pattern}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDeletePattern(savedPattern.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleDeletePattern(savedPattern.id)}
-                      className="p-1 text-gray-400 hover:text-red-500"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </div>
                 ))}
               </div>
             </div>
           )}
           
+          {/* Available Tokens */}
           <div className="space-y-3">
-            <p className="text-sm font-medium text-gray-700">Available Tokens:</p>
+            <h4 className="text-sm font-medium text-gray-700">Available Tokens</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {tokens.map(({ token, icon: Icon, description }) => (
                 <div
@@ -248,12 +250,16 @@ export function PatternInput({
                     type: 'pattern', 
                     pattern: (pattern.pattern || '') + token 
                   })}
-                  className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
+                  className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50/30 transition-all duration-200 cursor-pointer group"
                 >
-                  <Icon className="w-4 h-4 text-blue-600 mr-2 flex-shrink-0" />
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-gray-900">{token}</p>
-                    <p className="text-xs text-gray-500">{description}</p>
+                  <Icon className="w-5 h-5 text-blue-600 mr-3 flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 group-hover:text-blue-600">
+                      {token}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {description}
+                    </p>
                   </div>
                 </div>
               ))}
