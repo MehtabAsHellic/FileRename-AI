@@ -31,6 +31,7 @@ function App() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const handlePatternChange = (newPattern: RenamePattern) => {
     setPattern({
@@ -389,12 +390,14 @@ function App() {
         />
       )}
 
-      <div className="fixed bottom-8 right-8 z-50">
-        <Chatbot />
+      <div className="fixed bottom-8 right-8 z-40">
+        <Chatbot onOpenChange={setIsChatOpen} />
       </div>
 
-      {showScrollTop && (
-        <div className="fixed bottom-8 left-8 z-50">
+      {showScrollTop && !isChatOpen && (
+        <div className={`fixed bottom-8 left-8 z-30 transition-all duration-300 ${
+          isChatOpen ? 'opacity-0' : 'opacity-100'
+        }`}>
           <button
             onClick={scrollToTop}
             className="p-4 bg-purple-600 text-white rounded-full shadow-lg hover:bg-purple-700 transition-all duration-200 transform hover:scale-110"

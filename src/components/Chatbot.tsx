@@ -10,6 +10,10 @@ interface Message {
   timestamp: Date;
 }
 
+interface ChatbotProps {
+  onOpenChange?: (isOpen: boolean) => void;
+}
+
 const suggestedPrompts = [
   {
     text: "How do I use AI renaming?",
@@ -41,7 +45,7 @@ const welcomeMessage: Message = {
   timestamp: new Date()
 };
 
-export function Chatbot() {
+export function Chatbot({ onOpenChange }: ChatbotProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
@@ -50,6 +54,20 @@ export function Chatbot() {
   const [showSuggestions, setShowSuggestions] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    onOpenChange?.(isOpen);
+  }, [isOpen, onOpenChange]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -111,11 +129,19 @@ export function Chatbot() {
     handleSendMessage(prompt);
   };
 
+  const chatButtonClasses = `p-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 ${
+    isMobile ? 'fixed bottom-4 right-4 z-50' : ''
+  }`;
+
+  const chatWindowClasses = `bg-white rounded-lg shadow-2xl transition-all duration-300 
+    ${isMinimized ? 'w-auto h-auto' : 'w-[calc(100vw-2rem)] md:w-[400px] h-[80vh] md:h-[600px]'}
+    fixed bottom-4 right-4 z-50`;
+
   if (!isOpen) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="p-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+        className={chatButtonClasses}
         aria-label="Open chat"
       >
         <MessageCircle className="w-6 h-6" />
@@ -124,20 +150,22 @@ export function Chatbot() {
   }
 
   return (
-    <div
-      className={`bg-white rounded-lg shadow-2xl transition-all duration-300 
-        ${isMinimized ? 'w-72 h-14' : 'w-[calc(100vw-2rem)] md:w-[400px] h-[80vh] md:h-[600px]'}
-        fixed bottom-8 right-4 md:right-8 z-50`}
-    >
+    <div className={chatWindowClasses}>
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-lg">
-        <div className="flex items-center space-x-2">
-          <div className="relative">
-            <Bot className="w-5 h-5 animate-pulse" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full"></span>
+        {isMinimized ? (
+          <div className="flex items-center space-x-2">
+            <Bot className="w-5 h-5" />
           </div>
-          <h3 className="font-semibold">FileRename AI Assistant</h3>
-        </div>
+        ) : (
+          <div className="flex items-center space-x-2">
+            <div className="relative">
+              <Bot className="w-5 h-5 animate-pulse" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full"></span>
+            </div>
+            <h3 className="font-semibold">FileRename AI Assistant</h3>
+          </div>
+        )}
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setIsMinimized(!isMinimized)}
