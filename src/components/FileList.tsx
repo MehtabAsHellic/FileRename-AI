@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { FileItem, ConversionOptions } from '../types';
 import { 
   File, CheckCircle, AlertCircle, Loader2, Download, Trash2, 
-  PackageCheck, Archive, Eye, FileText, Edit2, Undo2, Save, X
+  PackageCheck, Archive, Eye, FileText, Edit2, Undo2, Save, X,
+  Wand2 // Added missing Wand2 icon import
 } from 'lucide-react';
 import { FileConversionOptions } from './ConversionOptions';
 import { DocumentAnalyzer } from './DocumentAnalyzer';
 import JSZip from 'jszip';
 import toast from 'react-hot-toast';
+import { analyzeContent } from '../utils/gemini';
 
 interface FileListProps {
   files: FileItem[];
@@ -33,6 +35,9 @@ export function FileList({
   const [analyzingFile, setAnalyzingFile] = useState<FileItem | null>(null);
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [showZipDialog, setShowZipDialog] = useState(false);
+  const [zipFileName, setZipFileName] = useState('');
+  const [isGeneratingZipName, setIsGeneratingZipName] = useState(false);
 
   if (files.length === 0) {
     return null;
@@ -58,6 +63,37 @@ export function FileList({
     }
   };
 
+  const generateIntelligentZipName = async () => {
+    setIsGeneratingZipName(true);
+    try {
+      const selectedFilesList = files.filter(f => selectedFiles.has(f.id));
+      const fileTypes = new Set(selectedFilesList.map(f => f.type.split('/')[1]));
+      const fileTypesStr = Array.from(fileTypes).join('_');
+      
+      // Get the first few file names to analyze
+      const fileNames = selectedFilesList
+        .slice(0, 3)
+        .map(f => f.newName || f.originalName)
+        .join('\n');
+
+      // Use Gemini to suggest a name
+      const prompt = `These files are being zipped together:\n${fileNames}\n\nFile types: ${fileTypesStr}\nNumber of files: ${selectedFilesList.length}\n\nSuggest a short, descriptive name for the zip file (without .zip extension). Use underscores instead of spaces.`;
+      
+      const suggestedName = await analyzeContent(prompt);
+      const date = new Date().toISOString().split('T')[0];
+      const finalName = `${suggestedName}_${date}`;
+      
+      setZipFileName(finalName);
+    } catch (error) {
+      console.error('Error generating zip name:', error);
+      // Fallback to basic name
+      const date = new Date().toISOString().split('T')[0];
+      setZipFileName(`files_${date}`);
+    } finally {
+      setIsGeneratingZipName(false);
+    }
+  };
+
   const handleBulkDownload = async (asZip: boolean = true) => {
     const filesToDownload = files.filter(f => 
       selectedFiles.has(f.id) && f.status === 'completed'
@@ -69,54 +105,69 @@ export function FileList({
     }
 
     if (asZip) {
-      setIsZipping(true);
-      const zip = new JSZip();
-      
-      try {
-        const chunkSize = 5;
-        for (let i = 0; i < filesToDownload.length; i += chunkSize) {
-          const chunk = filesToDownload.slice(i, i + chunkSize);
-          
-          await Promise.all(chunk.map(async (file) => {
-            const fileToZip = file.convertedFile || file.file;
-            if (fileToZip) {
-              zip.file(file.newName || file.originalName, fileToZip);
-            }
-          }));
-
-          if (i + chunkSize < filesToDownload.length) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-        }
-
-        const content = await zip.generateAsync({
-          type: 'blob',
-          compression: 'DEFLATE',
-          compressionOptions: { level: 6 }
-        });
-
-        const url = URL.createObjectURL(content);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `renamed_files_${new Date().toISOString().split('T')[0]}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        toast.success('Files downloaded successfully!');
-      } catch (error) {
-        console.error('Error generating zip:', error);
-        toast.error('Failed to create ZIP file. Try downloading files individually.');
-      } finally {
-        setIsZipping(false);
-      }
+      setShowZipDialog(true);
+      generateIntelligentZipName();
     } else {
       for (const file of filesToDownload) {
         await new Promise(resolve => setTimeout(resolve, 100));
         onDownload(file);
       }
       toast.success('Files downloaded successfully!');
+    }
+  };
+
+  const handleZipDownload = async () => {
+    if (!zipFileName.trim()) {
+      toast.error('Please enter a zip file name');
+      return;
+    }
+
+    setIsZipping(true);
+    const filesToDownload = files.filter(f => 
+      selectedFiles.has(f.id) && f.status === 'completed'
+    );
+
+    const zip = new JSZip();
+    
+    try {
+      const chunkSize = 5;
+      for (let i = 0; i < filesToDownload.length; i += chunkSize) {
+        const chunk = filesToDownload.slice(i, i + chunkSize);
+        
+        await Promise.all(chunk.map(async (file) => {
+          const fileToZip = file.convertedFile || file.file;
+          if (fileToZip) {
+            zip.file(file.newName || file.originalName, fileToZip);
+          }
+        }));
+
+        if (i + chunkSize < filesToDownload.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      const content = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${zipFileName}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('Files downloaded successfully!');
+      setShowZipDialog(false);
+    } catch (error) {
+      console.error('Error generating zip:', error);
+      toast.error('Failed to create ZIP file. Try downloading files individually.');
+    } finally {
+      setIsZipping(false);
     }
   };
 
@@ -359,6 +410,72 @@ export function FileList({
           ))}
         </div>
       </div>
+
+      {/* Zip File Name Dialog */}
+      {showZipDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Download as ZIP</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ZIP File Name
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={zipFileName}
+                    onChange={(e) => setZipFileName(e.target.value)}
+                    placeholder="Enter file name"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <button
+                    onClick={generateIntelligentZipName}
+                    disabled={isGeneratingZipName}
+                    className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+                    title="Generate name"
+                  >
+                    {isGeneratingZipName ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Wand2 className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+                <p className="mt-1 text-sm text-gray-500">
+                  .zip will be added automatically
+                </p>
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowZipDialog(false)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleZipDownload}
+                  disabled={isZipping || !zipFileName.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  {isZipping ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating ZIP...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Download
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {analyzingFile && (
         <DocumentAnalyzer
